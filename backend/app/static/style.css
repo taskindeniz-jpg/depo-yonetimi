@@ -104,6 +104,18 @@ th { color: #666; font-weight: 600; }
 .uyari { color: #d1242f; margin-top: 8px; }
 .basari { color: #2ea043; margin-top: 8px; }
 
+.bilgi-metni {
+  font-size: 13px;
+  color: #666;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+input[type="file"] {
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
 .tarama-btn {
   width: 100%;
   background: #6f42c1;

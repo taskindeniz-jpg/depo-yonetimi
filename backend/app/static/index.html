@@ -49,6 +49,18 @@
     </section>
 
     <section class="kart">
+      <h2>Excel'den Toplu Ürün Aktar</h2>
+      <p class="bilgi-metni">
+        Dosyanda <b>barkod</b> ve <b>ad</b> (ürün adı) sütunları olmalı.
+        <b>birim</b> ve <b>miktar</b> sütunları opsiyonel. Barkod zaten
+        kayıtlıysa bilgileri günceller, yoksa yeni ürün olarak ekler.
+      </p>
+      <input type="file" id="excelDosya" accept=".xlsx,.xls,.csv">
+      <button onclick="excelYukle()">📤 Dosyayı Yükle</button>
+      <div id="excelSonuc"></div>
+    </section>
+
+    <section class="kart">
       <h2>Tüm Ürünler</h2>
       <button onclick="urunleriListele()">🔄 Listeyi Yenile</button>
       <table id="urunTablosu">

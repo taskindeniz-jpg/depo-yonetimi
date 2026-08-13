@@ -103,6 +103,49 @@ async function urunleriListele() {
     .join("");
 }
 
+async function excelYukle() {
+  const dosyaInput = document.getElementById("excelDosya");
+  const sonucDiv = document.getElementById("excelSonuc");
+
+  if (!dosyaInput.files.length) {
+    sonucDiv.innerHTML = `<div class="uyari">Önce bir dosya seç</div>`;
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("dosya", dosyaInput.files[0]);
+
+  sonucDiv.innerHTML = `<div>Yükleniyor, lütfen bekle...</div>`;
+
+  try {
+    const yanit = await fetch("/api/urunler/toplu-yukle", {
+      method: "POST",
+      body: formData,
+    });
+
+    const sonuc = await yanit.json();
+
+    if (!yanit.ok) {
+      sonucDiv.innerHTML = `<div class="uyari">${sonuc.detail}</div>`;
+      return;
+    }
+
+    let mesaj = `<div class="basari">✔ ${sonuc.eklenen} yeni ürün eklendi, ${sonuc.guncellenen} ürün güncellendi.</div>`;
+    if (sonuc.hatalar && sonuc.hatalar.length > 0) {
+      mesaj += `<div class="uyari">${sonuc.hatalar.length} satır atlandı:<ul>`;
+      sonuc.hatalar.slice(0, 10).forEach((h) => {
+        mesaj += `<li>Satır ${h.satir}: ${h.mesaj}</li>`;
+      });
+      mesaj += `</ul></div>`;
+    }
+    sonucDiv.innerHTML = mesaj;
+    dosyaInput.value = "";
+    await urunleriListele();
+  } catch (hata) {
+    sonucDiv.innerHTML = `<div class="uyari">Bağlantı hatası: ${hata}</div>`;
+  }
+}
+
 async function hareketleriListele() {
   const yanit = await fetch("/api/hareketler?limit=20");
   const hareketler = await yanit.json();
