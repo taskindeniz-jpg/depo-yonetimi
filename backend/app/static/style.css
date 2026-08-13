@@ -1,0 +1,105 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f5f7;
+  margin: 0;
+  color: #1f2430;
+}
+
+header {
+  background: #1f6feb;
+  color: white;
+  padding: 16px 20px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.kart {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.kart h2 {
+  font-size: 16px;
+  margin: 0 0 12px 0;
+  color: #444;
+}
+
+.satir {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #d7dbe0;
+  border-radius: 8px;
+  font-size: 15px;
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #1f6feb;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover { opacity: 0.9; }
+
+.giris-btn { background: #2ea043; }
+.cikis-btn { background: #d1242f; }
+
+.sonuc-kutu {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f4ff;
+  border-radius: 8px;
+}
+
+.sonuc-kutu .ad { font-weight: 600; font-size: 17px; }
+.sonuc-kutu .miktar { font-size: 22px; color: #1f6feb; margin: 4px 0; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #eee;
+}
+
+th { color: #666; font-weight: 600; }
+
+.uyari { color: #d1242f; margin-top: 8px; }
+.basari { color: #2ea043; margin-top: 8px; }
