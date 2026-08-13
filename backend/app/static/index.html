@@ -1,71 +1,178 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Depo Yönetim Sistemi</title>
-<link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <header>
-    <h1>📦 Depo Yönetimi</h1>
-  </header>
+let mevcutBarkod = null;
 
-  <main>
-    <section class="kart">
-      <h2>Ürün Sorgula</h2>
-      <div class="satir">
-        <input type="text" id="barkodGirisi" placeholder="Barkod / ürün kodu" autofocus>
-        <button onclick="urunSorgula()">Sorgula</button>
-      </div>
-      <div id="urunSonuc" class="sonuc-kutu" style="display:none;"></div>
-    </section>
+async function urunSorgula() {
+  const barkod = document.getElementById("barkodGirisi").value.trim();
+  if (!barkod) return;
 
-    <section class="kart" id="hareketKarti" style="display:none;">
-      <h2>Stok Giriş / Çıkış</h2>
-      <div class="satir">
-        <input type="number" id="hareketMiktar" placeholder="Miktar" min="0" step="0.01">
-        <button class="giris-btn" onclick="hareketYap('giris')">➕ Giriş</button>
-        <button class="cikis-btn" onclick="hareketYap('cikis')">➖ Çıkış</button>
-      </div>
-      <input type="text" id="hareketNot" placeholder="Not (opsiyonel)">
-    </section>
+  const sonucKutu = document.getElementById("urunSonuc");
+  const hareketKarti = document.getElementById("hareketKarti");
 
-    <section class="kart">
-      <h2>Yeni Ürün Ekle</h2>
-      <div class="form-grid">
-        <input type="text" id="yeniBarkod" placeholder="Barkod">
-        <input type="text" id="yeniAd" placeholder="Ürün adı">
-        <input type="text" id="yeniBirim" placeholder="Birim (adet, kutu...)" value="adet">
-        <input type="number" id="yeniMiktar" placeholder="Başlangıç miktarı" value="0">
-      </div>
-      <button onclick="urunEkle()">Ürün Ekle</button>
-      <div id="ekleSonuc"></div>
-    </section>
+  try {
+    const yanit = await fetch(`/api/urunler/${encodeURIComponent(barkod)}`);
+    if (!yanit.ok) {
+      sonucKutu.style.display = "block";
+      sonucKutu.innerHTML = `<div class="uyari">Ürün bulunamadı. Aşağıdan yeni ürün olarak ekleyebilirsin.</div>`;
+      hareketKarti.style.display = "none";
+      mevcutBarkod = null;
+      return;
+    }
+    const urun = await yanit.json();
+    mevcutBarkod = urun.barkod;
 
-    <section class="kart">
-      <h2>Tüm Ürünler</h2>
-      <button onclick="urunleriListele()">🔄 Listeyi Yenile</button>
-      <table id="urunTablosu">
-        <thead>
-          <tr><th>Barkod</th><th>Ürün</th><th>Miktar</th><th>Birim</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+    sonucKutu.style.display = "block";
+    sonucKutu.innerHTML = `
+      <div class="ad">${urun.ad}</div>
+      <div class="miktar">${urun.miktar} ${urun.birim}</div>
+      <div>Barkod: ${urun.barkod}</div>
+    `;
+    hareketKarti.style.display = "block";
+  } catch (hata) {
+    sonucKutu.style.display = "block";
+    sonucKutu.innerHTML = `<div class="uyari">Bağlantı hatası: ${hata}</div>`;
+  }
+}
 
-    <section class="kart">
-      <h2>Son Hareketler</h2>
-      <button onclick="hareketleriListele()">🔄 Listeyi Yenile</button>
-      <table id="hareketTablosu">
-        <thead>
-          <tr><th>Tarih</th><th>Tip</th><th>Miktar</th><th>Not</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
+async function hareketYap(tip) {
+  if (!mevcutBarkod) return;
+  const miktar = parseFloat(document.getElementById("hareketMiktar").value);
+  const not_ = document.getElementById("hareketNot").value;
 
-  <script src="/static/app.js"></script>
-</body>
-</html>
+  if (!miktar || miktar <= 0) {
+    alert("Geçerli bir miktar gir");
+    return;
+  }
+
+  const yanit = await fetch("/api/hareketler", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barkod: mevcutBarkod, tip, miktar, not_ }),
+  });
+
+  if (!yanit.ok) {
+    const hata = await yanit.json();
+    alert("Hata: " + hata.detail);
+    return;
+  }
+
+  document.getElementById("hareketMiktar").value = "";
+  document.getElementById("hareketNot").value = "";
+  await urunSorgula();
+  await urunleriListele();
+  await hareketleriListele();
+}
+
+async function urunEkle() {
+  const barkod = document.getElementById("yeniBarkod").value.trim();
+  const ad = document.getElementById("yeniAd").value.trim();
+  const birim = document.getElementById("yeniBirim").value.trim() || "adet";
+  const miktar = parseFloat(document.getElementById("yeniMiktar").value) || 0;
+  const sonucDiv = document.getElementById("ekleSonuc");
+
+  if (!barkod || !ad) {
+    sonucDiv.innerHTML = `<div class="uyari">Barkod ve ürün adı zorunlu</div>`;
+    return;
+  }
+
+  const yanit = await fetch("/api/urunler", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ barkod, ad, birim, miktar, min_stok: 0 }),
+  });
+
+  if (!yanit.ok) {
+    const hata = await yanit.json();
+    sonucDiv.innerHTML = `<div class="uyari">${hata.detail}</div>`;
+    return;
+  }
+
+  sonucDiv.innerHTML = `<div class="basari">Ürün eklendi ✔</div>`;
+  document.getElementById("yeniBarkod").value = "";
+  document.getElementById("yeniAd").value = "";
+  document.getElementById("yeniMiktar").value = "";
+  await urunleriListele();
+}
+
+async function urunleriListele() {
+  const yanit = await fetch("/api/urunler");
+  const urunler = await yanit.json();
+  const govde = document.querySelector("#urunTablosu tbody");
+  govde.innerHTML = urunler
+    .map(
+      (u) => `<tr><td>${u.barkod}</td><td>${u.ad}</td><td>${u.miktar}</td><td>${u.birim}</td></tr>`
+    )
+    .join("");
+}
+
+async function hareketleriListele() {
+  const yanit = await fetch("/api/hareketler?limit=20");
+  const hareketler = await yanit.json();
+  const govde = document.querySelector("#hareketTablosu tbody");
+  govde.innerHTML = hareketler
+    .map((h) => {
+      const tarih = new Date(h.tarih).toLocaleString("tr-TR");
+      const tipEtiket = h.tip === "giris" ? "🟢 Giriş" : "🔴 Çıkış";
+      return `<tr><td>${tarih}</td><td>${tipEtiket}</td><td>${h.miktar}</td><td>${h.not_ || ""}</td></tr>`;
+    })
+    .join("");
+}
+
+document.getElementById("barkodGirisi").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") urunSorgula();
+});
+
+// ---- Kamera ile barkod/QR tarama ----
+let taramaAktif = null;
+
+function taramaBaslat() {
+  const kutu = document.getElementById("taramaKutusu");
+  const buton = document.getElementById("taramaBaslatBtn");
+  kutu.style.display = "block";
+  buton.style.display = "none";
+
+  taramaAktif = new Html5Qrcode("taramaAlani");
+
+  const ayarlar = {
+    fps: 10,
+    qrbox: { width: 250, height: 150 },
+  };
+
+  taramaAktif
+    .start(
+      { facingMode: "environment" }, // arka kamera
+      ayarlar,
+      (kodMetni) => {
+        // Barkod/QR okundu
+        document.getElementById("barkodGirisi").value = kodMetni;
+        taramaDurdur();
+        urunSorgula();
+      },
+      () => {
+        // okuma denemesi başarısız, sessizce devam (her karede tetiklenir)
+      }
+    )
+    .catch((hata) => {
+      alert("Kameraya erişilemedi: " + hata + "\nTarayıcının kamera iznini kontrol et.");
+      kutu.style.display = "none";
+      buton.style.display = "block";
+    });
+}
+
+function taramaDurdur() {
+  const kutu = document.getElementById("taramaKutusu");
+  const buton = document.getElementById("taramaBaslatBtn");
+
+  if (taramaAktif) {
+    taramaAktif
+      .stop()
+      .then(() => taramaAktif.clear())
+      .catch(() => {});
+    taramaAktif = null;
+  }
+
+  kutu.style.display = "none";
+  buton.style.display = "block";
+}
+
+// Sayfa açılışında listeleri getir
+urunleriListele();
+hareketleriListele();
