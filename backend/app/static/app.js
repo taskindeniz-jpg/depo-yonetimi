@@ -120,6 +120,59 @@ document.getElementById("barkodGirisi").addEventListener("keydown", (e) => {
   if (e.key === "Enter") urunSorgula();
 });
 
+// ---- Kamera ile barkod/QR tarama ----
+let taramaAktif = null;
+
+function taramaBaslat() {
+  const kutu = document.getElementById("taramaKutusu");
+  const buton = document.getElementById("taramaBaslatBtn");
+  kutu.style.display = "block";
+  buton.style.display = "none";
+
+  taramaAktif = new Html5Qrcode("taramaAlani");
+
+  const ayarlar = {
+    fps: 10,
+    qrbox: { width: 250, height: 150 },
+  };
+
+  taramaAktif
+    .start(
+      { facingMode: "environment" }, // arka kamera
+      ayarlar,
+      (kodMetni) => {
+        // Barkod/QR okundu
+        document.getElementById("barkodGirisi").value = kodMetni;
+        taramaDurdur();
+        urunSorgula();
+      },
+      () => {
+        // okuma denemesi başarısız, sessizce devam (her karede tetiklenir)
+      }
+    )
+    .catch((hata) => {
+      alert("Kameraya erişilemedi: " + hata + "\nTarayıcının kamera iznini kontrol et.");
+      kutu.style.display = "none";
+      buton.style.display = "block";
+    });
+}
+
+function taramaDurdur() {
+  const kutu = document.getElementById("taramaKutusu");
+  const buton = document.getElementById("taramaBaslatBtn");
+
+  if (taramaAktif) {
+    taramaAktif
+      .stop()
+      .then(() => taramaAktif.clear())
+      .catch(() => {});
+    taramaAktif = null;
+  }
+
+  kutu.style.display = "none";
+  buton.style.display = "block";
+}
+
 // Sayfa açılışında listeleri getir
 urunleriListele();
 hareketleriListele();
