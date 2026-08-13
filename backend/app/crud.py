@@ -75,3 +75,49 @@ def hareket_listele(db: Session, limit: int = 100):
         .limit(limit)
         .all()
     )
+
+
+def urun_toplu_ekle_veya_guncelle(db: Session, satirlar: list):
+    """
+    satirlar: [{barkod, ad, birim, miktar, min_stok}, ...] şeklinde liste.
+    Barkod zaten varsa günceller (miktarı YERİNE koyar, üstüne eklemez),
+    yoksa yeni ürün olarak ekler.
+    Dönüş: {eklenen, guncellenen, hatalar: [{satir, mesaj}]}
+    """
+    eklenen = 0
+    guncellenen = 0
+    hatalar = []
+
+    for i, satir in enumerate(satirlar, start=2):  # 2: Excel'de 1. satır başlık
+        barkod = str(satir.get("barkod", "")).strip()
+        ad = str(satir.get("ad", "")).strip()
+
+        if not barkod or not ad or barkod == "nan" or ad == "nan":
+            hatalar.append({"satir": i, "mesaj": "Barkod veya ürün adı boş, atlandı"})
+            continue
+
+        try:
+            birim = str(satir.get("birim") or "adet").strip()
+            miktar = float(satir.get("miktar") or 0)
+            min_stok = float(satir.get("min_stok") or 0)
+        except (ValueError, TypeError):
+            hatalar.append({"satir": i, "mesaj": "Miktar/min_stok sayı olmalı, atlandı"})
+            continue
+
+        mevcut = urun_getir_barkod(db, barkod)
+        if mevcut:
+            mevcut.ad = ad
+            mevcut.birim = birim
+            mevcut.miktar = miktar
+            mevcut.min_stok = min_stok
+            guncellenen += 1
+        else:
+            yeni_urun = models.Urun(
+                barkod=barkod, ad=ad, birim=birim, miktar=miktar, min_stok=min_stok
+            )
+            db.add(yeni_urun)
+            eklenen += 1
+
+    db.commit()
+    return {"eklenen": eklenen, "guncellenen": guncellenen, "hatalar": hatalar}
+
