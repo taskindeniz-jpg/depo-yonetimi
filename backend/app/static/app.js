@@ -1,5 +1,81 @@
 let mevcutBarkod = null;
 
+// ---- Kimlik doğrulama ----
+function tokenGetir() {
+  return localStorage.getItem("depo_token");
+}
+
+function tokenKaydet(token) {
+  localStorage.setItem("depo_token", token);
+}
+
+function tokenSil() {
+  localStorage.removeItem("depo_token");
+}
+
+function yetkiliBasliklar(ekBaslik = {}) {
+  return { Authorization: `Bearer ${tokenGetir()}`, ...ekBaslik };
+}
+
+async function girisYap() {
+  const kullaniciAdi = document.getElementById("girisKullaniciAdi").value.trim();
+  const sifre = document.getElementById("girisSifre").value;
+  const hataDiv = document.getElementById("girisHata");
+  hataDiv.textContent = "";
+
+  if (!kullaniciAdi || !sifre) {
+    hataDiv.textContent = "Kullanıcı adı ve şifre gerekli";
+    return;
+  }
+
+  try {
+    const yanit = await fetch("/api/auth/giris", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kullanici_adi: kullaniciAdi, sifre }),
+    });
+
+    if (!yanit.ok) {
+      const hata = await yanit.json();
+      hataDiv.textContent = hata.detail || "Giriş başarısız";
+      return;
+    }
+
+    const veri = await yanit.json();
+    tokenKaydet(veri.access_token);
+    girisEkraniniGizle();
+    await sayfaVerileriniYukle();
+  } catch (hata) {
+    hataDiv.textContent = "Bağlantı hatası: " + hata;
+  }
+}
+
+function cikisYap() {
+  tokenSil();
+  document.getElementById("girisEkrani").style.display = "flex";
+  document.getElementById("anaIcerik").style.display = "none";
+  document.getElementById("girisKullaniciAdi").value = "";
+  document.getElementById("girisSifre").value = "";
+}
+
+function girisEkraniniGizle() {
+  document.getElementById("girisEkrani").style.display = "none";
+  document.getElementById("anaIcerik").style.display = "block";
+}
+
+async function sayfaVerileriniYukle() {
+  await urunleriListele();
+  await hareketleriListele();
+}
+
+function oturumKontrolEt(yanit) {
+  if (yanit.status === 401) {
+    cikisYap();
+    return true;
+  }
+  return false;
+}
+
 async function urunSorgula() {
   const barkod = document.getElementById("barkodGirisi").value.trim();
   if (!barkod) return;
@@ -8,7 +84,11 @@ async function urunSorgula() {
   const hareketKarti = document.getElementById("hareketKarti");
 
   try {
-    const yanit = await fetch(`/api/urunler/${encodeURIComponent(barkod)}`);
+    const yanit = await fetch(`/api/urunler/${encodeURIComponent(barkod)}`, {
+      headers: yetkiliBasliklar(),
+    });
+    if (oturumKontrolEt(yanit)) return;
+
     if (!yanit.ok) {
       sonucKutu.style.display = "block";
       sonucKutu.innerHTML = `<div class="uyari">Ürün bulunamadı. Aşağıdan yeni ürün olarak ekleyebilirsin.</div>`;
@@ -44,9 +124,11 @@ async function hareketYap(tip) {
 
   const yanit = await fetch("/api/hareketler", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: yetkiliBasliklar({ "Content-Type": "application/json" }),
     body: JSON.stringify({ barkod: mevcutBarkod, tip, miktar, not_ }),
   });
+
+  if (oturumKontrolEt(yanit)) return;
 
   if (!yanit.ok) {
     const hata = await yanit.json();
@@ -75,9 +157,11 @@ async function urunEkle() {
 
   const yanit = await fetch("/api/urunler", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: yetkiliBasliklar({ "Content-Type": "application/json" }),
     body: JSON.stringify({ barkod, ad, birim, miktar, min_stok: 0 }),
   });
+
+  if (oturumKontrolEt(yanit)) return;
 
   if (!yanit.ok) {
     const hata = await yanit.json();
@@ -92,13 +176,40 @@ async function urunEkle() {
   await urunleriListele();
 }
 
+async function urunSil(barkod) {
+  if (!confirm(`"${barkod}" barkodlu ürünü silmek istediğine emin misin?`)) return;
+
+  const yanit = await fetch(`/api/urunler/${encodeURIComponent(barkod)}`, {
+    method: "DELETE",
+    headers: yetkiliBasliklar(),
+  });
+
+  if (oturumKontrolEt(yanit)) return;
+
+  if (!yanit.ok) {
+    const hata = await yanit.json();
+    alert("Silinemedi: " + hata.detail);
+    return;
+  }
+
+  await urunleriListele();
+}
+
 async function urunleriListele() {
-  const yanit = await fetch("/api/urunler");
+  const yanit = await fetch("/api/urunler", { headers: yetkiliBasliklar() });
+  if (oturumKontrolEt(yanit)) return;
+
   const urunler = await yanit.json();
   const govde = document.querySelector("#urunTablosu tbody");
   govde.innerHTML = urunler
     .map(
-      (u) => `<tr><td>${u.barkod}</td><td>${u.ad}</td><td>${u.miktar}</td><td>${u.birim}</td></tr>`
+      (u) => `<tr>
+        <td>${u.barkod}</td>
+        <td>${u.ad}</td>
+        <td>${u.miktar}</td>
+        <td>${u.birim}</td>
+        <td><button class="sil-btn" onclick="urunSil('${u.barkod}')" title="Sil">🗑️</button></td>
+      </tr>`
     )
     .join("");
 }
@@ -120,8 +231,11 @@ async function excelYukle() {
   try {
     const yanit = await fetch("/api/urunler/toplu-yukle", {
       method: "POST",
+      headers: yetkiliBasliklar(),
       body: formData,
     });
+
+    if (oturumKontrolEt(yanit)) return;
 
     const sonuc = await yanit.json();
 
@@ -147,7 +261,9 @@ async function excelYukle() {
 }
 
 async function hareketleriListele() {
-  const yanit = await fetch("/api/hareketler?limit=20");
+  const yanit = await fetch("/api/hareketler?limit=20", { headers: yetkiliBasliklar() });
+  if (oturumKontrolEt(yanit)) return;
+
   const hareketler = await yanit.json();
   const govde = document.querySelector("#hareketTablosu tbody");
   govde.innerHTML = hareketler
@@ -163,7 +279,10 @@ document.getElementById("barkodGirisi").addEventListener("keydown", (e) => {
   if (e.key === "Enter") urunSorgula();
 });
 
-// ---- Kamera ile barkod/QR tarama ----
+document.getElementById("girisSifre").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") girisYap();
+});
+
 let taramaAktif = null;
 
 function taramaBaslat() {
@@ -181,17 +300,14 @@ function taramaBaslat() {
 
   taramaAktif
     .start(
-      { facingMode: "environment" }, // arka kamera
+      { facingMode: "environment" },
       ayarlar,
       (kodMetni) => {
-        // Barkod/QR okundu
         document.getElementById("barkodGirisi").value = kodMetni;
         taramaDurdur();
         urunSorgula();
       },
-      () => {
-        // okuma denemesi başarısız, sessizce devam (her karede tetiklenir)
-      }
+      () => {}
     )
     .catch((hata) => {
       alert("Kameraya erişilemedi: " + hata + "\nTarayıcının kamera iznini kontrol et.");
@@ -216,6 +332,7 @@ function taramaDurdur() {
   buton.style.display = "block";
 }
 
-// Sayfa açılışında listeleri getir
-urunleriListele();
-hareketleriListele();
+if (tokenGetir()) {
+  girisEkraniniGizle();
+  sayfaVerileriniYukle();
+}
