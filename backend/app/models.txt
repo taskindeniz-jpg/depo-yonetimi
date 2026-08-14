@@ -1,0 +1,47 @@
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+import enum
+
+from .database import Base
+
+
+class HareketTipi(str, enum.Enum):
+    giris = "giris"
+    cikis = "cikis"
+
+
+class Kullanici(Base):
+    __tablename__ = "kullanicilar"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kullanici_adi = Column(String, unique=True, index=True, nullable=False)
+    sifre_hash = Column(String, nullable=False)
+    olusturma_tarihi = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Urun(Base):
+    __tablename__ = "urunler"
+
+    id = Column(Integer, primary_key=True, index=True)
+    barkod = Column(String, unique=True, index=True, nullable=False)
+    ad = Column(String, nullable=False)
+    birim = Column(String, default="adet")
+    miktar = Column(Float, default=0)
+    min_stok = Column(Float, default=0)
+    olusturma_tarihi = Column(DateTime(timezone=True), server_default=func.now())
+
+    hareketler = relationship("StokHareketi", back_populates="urun")
+
+
+class StokHareketi(Base):
+    __tablename__ = "stok_hareketleri"
+
+    id = Column(Integer, primary_key=True, index=True)
+    urun_id = Column(Integer, ForeignKey("urunler.id"), nullable=False)
+    tip = Column(Enum(HareketTipi), nullable=False)
+    miktar = Column(Float, nullable=False)
+    not_ = Column("not", String, nullable=True)
+    tarih = Column(DateTime(timezone=True), server_default=func.now())
+
+    urun = relationship("Urun", back_populates="hareketler")

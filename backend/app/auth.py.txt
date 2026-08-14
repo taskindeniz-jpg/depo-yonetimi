@@ -1,0 +1,43 @@
+import os
+import hmac
+import hashlib
+import secrets
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+
+# Railway'de Variables sekmesinden SECRET_KEY eklemen önerilir.
+# Eklemezsen bu varsayılan kullanılır (geliştirme için yeterli, ama gerçek
+# kullanımda kendi rastgele anahtarını ayarlaman daha güvenli olur).
+SECRET_KEY = os.getenv("SECRET_KEY", "depo-yonetimi-varsayilan-anahtar-lutfen-degistir")
+TOKEN_GECERLILIK_SANIYE = 60 * 60 * 24 * 7  # 7 gün boyunca giriş açık kalır
+
+_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="depo-yonetimi-auth")
+
+
+def sifre_hashle(sifre: str) -> str:
+    """Şifreyi rastgele tuzla (salt) birlikte güvenli şekilde hashler."""
+    tuz = secrets.token_hex(16)
+    hash_degeri = hashlib.pbkdf2_hmac("sha256", sifre.encode(), bytes.fromhex(tuz), 200_000)
+    return f"{tuz}${hash_degeri.hex()}"
+
+
+def sifre_dogrula(sifre: str, hashlenmis: str) -> bool:
+    """Girilen şifreyi, veritabanındaki hash ile karşılaştırır."""
+    try:
+        tuz, hash_hex = hashlenmis.split("$")
+    except ValueError:
+        return False
+    hesaplanan = hashlib.pbkdf2_hmac("sha256", sifre.encode(), bytes.fromhex(tuz), 200_000)
+    return hmac.compare_digest(hesaplanan.hex(), hash_hex)
+
+
+def token_olustur(kullanici_adi: str) -> str:
+    return _serializer.dumps({"kullanici_adi": kullanici_adi})
+
+
+def token_dogrula(token: str):
+    """Token geçerliyse kullanıcı adını, değilse None döner."""
+    try:
+        veri = _serializer.loads(token, max_age=TOKEN_GECERLILIK_SANIYE)
+        return veri.get("kullanici_adi")
+    except (BadSignature, SignatureExpired):
+        return None
