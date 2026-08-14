@@ -1,6 +1,7 @@
 import os
 import io
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 from typing import List
 import pandas as pd
 
-from . import models, schemas, crud
+from . import models, schemas, crud, auth
 from .database import engine, get_db, Base
 
 Base.metadata.create_all(bind=engine)
@@ -22,6 +23,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+guvenlik = HTTPBearer()
+
+
+def gecerli_kullanici(kimlik: HTTPAuthorizationCredentials = Depends(guvenlik)):
+    kullanici_adi = auth.token_dogrula(kimlik.credentials)
+    if not kullanici_adi:
+        raise HTTPException(status_code=401, detail="Oturum geçersiz veya süresi dolmuş, tekrar giriş yap")
+    return kullanici_adi
+
+
+@app.on_event("startup")
+def baslangicta_admin_olustur():
+    db = next(get_db())
+    try:
+        mevcut = db.query(models.Kullanici).first()
+        if not mevcut:
+            varsayilan_ad = os.getenv("ADMIN_KULLANICI_ADI", "admin")
+            varsayilan_sifre = os.getenv("ADMIN_SIFRE", "admin123")
+            crud.kullanici_olustur(db, varsayilan_ad, auth.sifre_hashle(varsayilan_sifre))
+    finally:
+        db.close()
+
+
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -31,42 +55,50 @@ def anasayfa():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
+@app.post("/api/auth/giris", response_model=schemas.TokenCikti)
+def giris_yap(istek: schemas.GirisIstek, db: Session = Depends(get_db)):
+    kullanici = crud.kullanici_getir(db, istek.kullanici_adi)
+    if not kullanici or not auth.sifre_dogrula(istek.sifre, kullanici.sifre_hash):
+        raise HTTPException(status_code=401, detail="Kullanıcı adı veya şifre hatalı")
+    token = auth.token_olustur(kullanici.kullanici_adi)
+    return {"access_token": token, "token_type": "bearer", "kullanici_adi": kullanici.kullanici_adi}
+
+
 @app.get("/api/urunler", response_model=List[schemas.UrunCikti])
-def urunleri_listele(db: Session = Depends(get_db)):
+def urunleri_listele(db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.urun_listele(db)
 
 
 @app.get("/api/urunler/{barkod}", response_model=schemas.UrunCikti)
-def urun_sorgula(barkod: str, db: Session = Depends(get_db)):
+def urun_sorgula(barkod: str, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     urun = crud.urun_getir_barkod(db, barkod)
     if not urun:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Ürün bulunamadı")
     return urun
 
 
 @app.post("/api/urunler", response_model=schemas.UrunCikti)
-def urun_ekle(urun: schemas.UrunOlustur, db: Session = Depends(get_db)):
+def urun_ekle(urun: schemas.UrunOlustur, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.urun_olustur(db, urun)
 
 
 @app.put("/api/urunler/{barkod}", response_model=schemas.UrunCikti)
-def urun_duzenle(barkod: str, degisiklik: schemas.UrunGuncelle, db: Session = Depends(get_db)):
+def urun_duzenle(barkod: str, degisiklik: schemas.UrunGuncelle, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.urun_guncelle(db, barkod, degisiklik)
 
 
 @app.delete("/api/urunler/{barkod}")
-def urun_kaldir(barkod: str, db: Session = Depends(get_db)):
+def urun_kaldir(barkod: str, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.urun_sil(db, barkod)
 
 
 @app.post("/api/hareketler", response_model=schemas.HareketCikti)
-def hareket_ekle(hareket: schemas.HareketOlustur, db: Session = Depends(get_db)):
+def hareket_ekle(hareket: schemas.HareketOlustur, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.hareket_olustur(db, hareket)
 
 
 @app.get("/api/hareketler", response_model=List[schemas.HareketCikti])
-def hareketleri_listele(limit: int = 100, db: Session = Depends(get_db)):
+def hareketleri_listele(limit: int = 100, db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     return crud.hareket_listele(db, limit)
 
 
@@ -93,7 +125,7 @@ def _sutun_bul(kolonlar, adaylar):
 
 
 @app.post("/api/urunler/toplu-yukle")
-async def urunleri_toplu_yukle(dosya: UploadFile = File(...), db: Session = Depends(get_db)):
+async def urunleri_toplu_yukle(dosya: UploadFile = File(...), db: Session = Depends(get_db), _: str = Depends(gecerli_kullanici)):
     if not dosya.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="Sadece .xlsx, .xls veya .csv dosyası yükleyebilirsin")
 
