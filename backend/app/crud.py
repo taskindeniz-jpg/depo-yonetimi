@@ -4,6 +4,18 @@ from fastapi import HTTPException
 from . import models, schemas
 
 
+def kullanici_getir(db: Session, kullanici_adi: str):
+    return db.query(models.Kullanici).filter(models.Kullanici.kullanici_adi == kullanici_adi).first()
+
+
+def kullanici_olustur(db: Session, kullanici_adi: str, sifre_hash: str):
+    kullanici = models.Kullanici(kullanici_adi=kullanici_adi, sifre_hash=sifre_hash)
+    db.add(kullanici)
+    db.commit()
+    db.refresh(kullanici)
+    return kullanici
+
+
 def urun_getir_barkod(db: Session, barkod: str):
     return db.query(models.Urun).filter(models.Urun.barkod == barkod).first()
 
@@ -120,4 +132,3 @@ def urun_toplu_ekle_veya_guncelle(db: Session, satirlar: list):
 
     db.commit()
     return {"eklenen": eklenen, "guncellenen": guncellenen, "hatalar": hatalar}
-
