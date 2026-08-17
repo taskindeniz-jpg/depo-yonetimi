@@ -66,9 +66,26 @@
       <div class="form-grid">
         <input type="text" id="yeniBarkod" placeholder="Barkod">
         <input type="text" id="yeniAd" placeholder="Ürün adı">
-        <input type="text" id="yeniBirim" placeholder="Birim (adet, kutu...)" value="adet">
+        <select id="yeniBirim">
+          <option value="adet">adet</option>
+          <option value="kg">kg</option>
+          <option value="gr">gr</option>
+          <option value="litre">litre</option>
+          <option value="ml">ml</option>
+          <option value="kutu">kutu</option>
+          <option value="koli">koli</option>
+          <option value="paket">paket</option>
+          <option value="metre">metre</option>
+          <option value="m2">m²</option>
+          <option value="m3">m³</option>
+          <option value="çift">çift</option>
+          <option value="ton">ton</option>
+          <option value="rulo">rulo</option>
+        </select>
         <input type="number" id="yeniMiktar" placeholder="Başlangıç miktarı" value="0">
       </div>
+      <button onclick="barkodOner()" class="oner-btn" id="onerBtn" style="display:none;">🔍 Barkoddan ürün adı öner</button>
+      <div id="onerSonuc"></div>
       <button onclick="urunEkle()">Ürün Ekle</button>
       <div id="ekleSonuc"></div>
     </section>
