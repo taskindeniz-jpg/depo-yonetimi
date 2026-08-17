@@ -114,6 +114,55 @@
     </section>
 
     <section class="kart">
+      <h2>📥 Mal Kabul</h2>
+      <div class="form-grid">
+        <input type="text" id="mkTedarikci" placeholder="Tedarikçi">
+        <input type="text" id="mkIrsaliyeNo" placeholder="İrsaliye no">
+      </div>
+      <input type="text" id="mkNot" placeholder="Not (opsiyonel)">
+      <div id="mkKalemler"></div>
+      <button onclick="mkSatirEkle()" class="satir-ekle-btn">+ Ürün Satırı Ekle</button>
+      <button onclick="mkKaydet()">Mal Kabulü Kaydet</button>
+      <div id="mkSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>📤 Sevkiyat</h2>
+      <div class="form-grid">
+        <input type="text" id="svMusteri" placeholder="Müşteri / birim">
+        <input type="text" id="svSevkNo" placeholder="Sevk no">
+      </div>
+      <input type="text" id="svKontrolEden" placeholder="Kontrol eden (opsiyonel)">
+      <input type="text" id="svNot" placeholder="Not (opsiyonel)">
+      <div id="svKalemler"></div>
+      <button onclick="svSatirEkle()" class="satir-ekle-btn">+ Ürün Satırı Ekle</button>
+      <button onclick="svKaydet()">Sevkiyatı Kaydet</button>
+      <div id="svSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>Mal Kabul Geçmişi</h2>
+      <button onclick="mkListele()">🔄 Listeyi Yenile</button>
+      <table id="mkTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Tedarikçi</th><th>İrsaliye</th><th>Kabul Eden</th><th>Kalem</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart">
+      <h2>Sevkiyat Geçmişi</h2>
+      <button onclick="svListele()">🔄 Listeyi Yenile</button>
+      <table id="svTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Müşteri</th><th>Sevk No</th><th>Hazırlayan</th><th>Kalem</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart">
       <h2>Son Hareketler</h2>
       <button onclick="hareketleriListele()">🔄 Listeyi Yenile</button>
       <table id="hareketTablosu">

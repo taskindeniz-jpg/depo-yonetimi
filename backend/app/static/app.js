@@ -95,6 +95,8 @@ function girisEkraniniGizle() {
 async function sayfaVerileriniYukle() {
   await urunleriListele();
   await hareketleriListele();
+  await mkListele();
+  await svListele();
   if (rolYeterliMi("depo_muduru")) {
     await denetimKayitlariniListele();
   }
@@ -409,6 +411,176 @@ async function hareketleriListele() {
         <td>${h.sonraki_miktar ?? "-"}</td>
         <td>${kacisEt(h.neden || h.not_ || "")}</td>
         <td>${kacisEt(h.kullanici_adi_metin || "-")}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// ---- Mal Kabul ----
+function mkSatirEkle() {
+  const kutu = document.getElementById("mkKalemler");
+  const satir = document.createElement("div");
+  satir.className = "kalem-satiri";
+  satir.innerHTML = `
+    <input type="text" placeholder="Barkod" class="mk-barkod">
+    <input type="number" placeholder="Gelen miktar" class="mk-miktar" min="0" step="0.01">
+    <input type="text" placeholder="Fark açıklaması (ops.)" class="mk-fark">
+    <button class="kalem-sil-btn" onclick="this.parentElement.remove()">✕</button>
+  `;
+  kutu.appendChild(satir);
+}
+
+async function mkKaydet() {
+  const tedarikci = document.getElementById("mkTedarikci").value.trim();
+  const irsaliyeNo = document.getElementById("mkIrsaliyeNo").value.trim();
+  const not_ = document.getElementById("mkNot").value.trim();
+  const sonucDiv = document.getElementById("mkSonuc");
+
+  if (!tedarikci) {
+    sonucDiv.innerHTML = `<div class="uyari">Tedarikçi adı zorunlu</div>`;
+    return;
+  }
+
+  const satirlar = [...document.querySelectorAll("#mkKalemler .kalem-satiri")];
+  const kalemler = satirlar
+    .map((s) => ({
+      barkod: s.querySelector(".mk-barkod").value.trim(),
+      gelen_miktar: parseFloat(s.querySelector(".mk-miktar").value),
+      fark_aciklamasi: s.querySelector(".mk-fark").value.trim() || null,
+    }))
+    .filter((k) => k.barkod && !isNaN(k.gelen_miktar));
+
+  if (kalemler.length === 0) {
+    sonucDiv.innerHTML = `<div class="uyari">En az bir ürün satırı ekle (barkod ve miktar gerekli)</div>`;
+    return;
+  }
+
+  const yanit = await fetch("/api/mal-kabul", {
+    method: "POST",
+    headers: yetkiliBasliklar({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ tedarikci, irsaliye_no: irsaliyeNo || null, not_: not_ || null, kalemler }),
+  });
+
+  if (oturumKontrolEt(yanit)) return;
+
+  if (!yanit.ok) {
+    const hata = await yanit.json();
+    sonucDiv.innerHTML = `<div class="uyari">${kacisEt(hata.detail)}</div>`;
+    return;
+  }
+
+  sonucDiv.innerHTML = `<div class="basari">Mal kabul kaydedildi ✔</div>`;
+  document.getElementById("mkTedarikci").value = "";
+  document.getElementById("mkIrsaliyeNo").value = "";
+  document.getElementById("mkNot").value = "";
+  document.getElementById("mkKalemler").innerHTML = "";
+  await mkListele();
+  await urunleriListele();
+  await hareketleriListele();
+}
+
+async function mkListele() {
+  const yanit = await fetch("/api/mal-kabul?limit=50", { headers: yetkiliBasliklar() });
+  if (oturumKontrolEt(yanit)) return;
+  const kayitlar = await yanit.json();
+  const govde = document.querySelector("#mkTablosu tbody");
+  govde.innerHTML = kayitlar
+    .map((k) => {
+      const tarih = new Date(k.olusturma_tarihi).toLocaleString("tr-TR");
+      return `<tr>
+        <td>${tarih}</td>
+        <td>${kacisEt(k.tedarikci)}</td>
+        <td>${kacisEt(k.irsaliye_no || "-")}</td>
+        <td>${kacisEt(k.kabul_eden_adi_metin || "-")}</td>
+        <td>${k.kalemler.length}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// ---- Sevkiyat ----
+function svSatirEkle() {
+  const kutu = document.getElementById("svKalemler");
+  const satir = document.createElement("div");
+  satir.className = "kalem-satiri";
+  satir.innerHTML = `
+    <input type="text" placeholder="Barkod" class="sv-barkod">
+    <input type="number" placeholder="Miktar" class="sv-miktar" min="0" step="0.01">
+    <button class="kalem-sil-btn" onclick="this.parentElement.remove()">✕</button>
+  `;
+  kutu.appendChild(satir);
+}
+
+async function svKaydet() {
+  const musteri = document.getElementById("svMusteri").value.trim();
+  const sevkNo = document.getElementById("svSevkNo").value.trim();
+  const kontrolEden = document.getElementById("svKontrolEden").value.trim();
+  const not_ = document.getElementById("svNot").value.trim();
+  const sonucDiv = document.getElementById("svSonuc");
+
+  if (!musteri) {
+    sonucDiv.innerHTML = `<div class="uyari">Müşteri / birim adı zorunlu</div>`;
+    return;
+  }
+
+  const satirlar = [...document.querySelectorAll("#svKalemler .kalem-satiri")];
+  const kalemler = satirlar
+    .map((s) => ({
+      barkod: s.querySelector(".sv-barkod").value.trim(),
+      miktar: parseFloat(s.querySelector(".sv-miktar").value),
+    }))
+    .filter((k) => k.barkod && !isNaN(k.miktar));
+
+  if (kalemler.length === 0) {
+    sonucDiv.innerHTML = `<div class="uyari">En az bir ürün satırı ekle (barkod ve miktar gerekli)</div>`;
+    return;
+  }
+
+  const yanit = await fetch("/api/sevkiyat", {
+    method: "POST",
+    headers: yetkiliBasliklar({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      musteri,
+      sevk_no: sevkNo || null,
+      kontrol_eden_adi_metin: kontrolEden || null,
+      not_: not_ || null,
+      kalemler,
+    }),
+  });
+
+  if (oturumKontrolEt(yanit)) return;
+
+  if (!yanit.ok) {
+    const hata = await yanit.json();
+    sonucDiv.innerHTML = `<div class="uyari">${kacisEt(hata.detail)}</div>`;
+    return;
+  }
+
+  sonucDiv.innerHTML = `<div class="basari">Sevkiyat kaydedildi ✔</div>`;
+  document.getElementById("svMusteri").value = "";
+  document.getElementById("svSevkNo").value = "";
+  document.getElementById("svKontrolEden").value = "";
+  document.getElementById("svNot").value = "";
+  document.getElementById("svKalemler").innerHTML = "";
+  await svListele();
+  await urunleriListele();
+  await hareketleriListele();
+}
+
+async function svListele() {
+  const yanit = await fetch("/api/sevkiyat?limit=50", { headers: yetkiliBasliklar() });
+  if (oturumKontrolEt(yanit)) return;
+  const kayitlar = await yanit.json();
+  const govde = document.querySelector("#svTablosu tbody");
+  govde.innerHTML = kayitlar
+    .map((k) => {
+      const tarih = new Date(k.olusturma_tarihi).toLocaleString("tr-TR");
+      return `<tr>
+        <td>${tarih}</td>
+        <td>${kacisEt(k.musteri)}</td>
+        <td>${kacisEt(k.sevk_no || "-")}</td>
+        <td>${kacisEt(k.hazirlayan_adi_metin || "-")}</td>
+        <td>${k.kalemler.length}</td>
       </tr>`;
     })
     .join("");

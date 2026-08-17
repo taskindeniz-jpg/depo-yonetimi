@@ -209,6 +209,38 @@ select {
   background: white;
 }
 
+.satir-ekle-btn {
+  background: #6e7681;
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.kalem-satiri {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.kalem-satiri input {
+  flex: 1;
+}
+
+.kalem-sil-btn {
+  background: transparent;
+  color: #d1242f;
+  padding: 4px 8px;
+  flex: 0 0 auto;
+}
+
+.detay-goster {
+  cursor: pointer;
+  color: #1f6feb;
+  font-size: 12px;
+  text-decoration: underline;
+}
+
 .tarama-durdur-btn {
   width: 100%;
   background: #6e7681;
