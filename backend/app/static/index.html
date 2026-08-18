@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Depo Yönetim Sistemi</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="girisEkrani" class="giris-katmani">
+    <div class="giris-kutu">
+      <h2>📦 Depo Yönetimi</h2>
+      <p>Devam etmek için giriş yap</p>
+      <input type="text" id="girisKullaniciAdi" placeholder="Kullanıcı adı" autocomplete="username">
+      <input type="password" id="girisSifre" placeholder="Şifre" autocomplete="current-password">
+      <button onclick="girisYap()">Giriş Yap</button>
+      <div id="girisHata" class="uyari"></div>
+    </div>
+  </div>
+
+  <div id="anaIcerik" style="display:none;">
+  <header>
+    <h1>📦 Depo Yönetimi</h1>
+    <div class="header-sag">
+      <span id="kullaniciBilgisi" class="kullanici-bilgisi"></span>
+      <button class="sifre-btn-header" onclick="sifrePaneliAcKapat()">🔑</button>
+      <button class="cikis-btn-header" onclick="cikisYap()">Çıkış</button>
+    </div>
+  </header>
+
+  <div id="sifrePaneli" class="kart" style="display:none; margin: 0 16px 16px 16px;">
+    <h2>Şifre Değiştir</h2>
+    <input type="password" id="eskiSifre" placeholder="Eski şifre">
+    <input type="password" id="yeniSifre" placeholder="Yeni şifre (en az 6 karakter)">
+    <button onclick="sifreDegistir()">Şifreyi Güncelle</button>
+    <div id="sifreSonuc"></div>
+  </div>
+
+  <main>
+    <section class="kart">
+      <h2>Ürün Sorgula</h2>
+      <div class="satir">
+        <input type="text" id="barkodGirisi" placeholder="Barkod / ürün kodu" autofocus>
+        <button onclick="urunSorgula()">Sorgula</button>
+      </div>
+      <button id="taramaBaslatBtn" class="tarama-btn" onclick="taramaBaslat()">📷 Kamera ile Tara</button>
+      <div id="taramaKutusu" style="display:none;">
+        <div id="taramaAlani"></div>
+        <button class="tarama-durdur-btn" onclick="taramaDurdur()">✕ Taramayı Kapat</button>
+      </div>
+      <div id="urunSonuc" class="sonuc-kutu" style="display:none;"></div>
+    </section>
+
+    <section class="kart" id="hareketKarti" style="display:none;">
+      <h2>Stok Giriş / Çıkış</h2>
+      <div class="satir">
+        <input type="text" inputmode="decimal" id="hareketMiktar" placeholder="Miktar (örn: 5 veya 5,5)">
+        <button class="giris-btn" onclick="hareketYap('giris')">➕ Giriş</button>
+        <button class="cikis-btn" onclick="hareketYap('cikis')">➖ Çıkış</button>
+      </div>
+      <input type="text" id="hareketNot" placeholder="Not (opsiyonel)">
+    </section>
+
+    <section class="kart">
+      <h2>Yeni Ürün Ekle</h2>
+      <div class="form-grid">
+        <input type="text" id="yeniBarkod" placeholder="Barkod">
+        <input type="text" id="yeniAd" placeholder="Ürün adı">
+        <select id="yeniBirim">
+          <option value="adet">adet</option>
+          <option value="kg">kg</option>
+          <option value="gr">gr</option>
+          <option value="litre">litre</option>
+          <option value="ml">ml</option>
+          <option value="kutu">kutu</option>
+          <option value="koli">koli</option>
+          <option value="paket">paket</option>
+          <option value="metre">metre</option>
+          <option value="m2">m²</option>
+          <option value="m3">m³</option>
+          <option value="çift">çift</option>
+          <option value="ton">ton</option>
+          <option value="rulo">rulo</option>
+        </select>
+        <input type="text" inputmode="decimal" id="yeniMiktar" placeholder="Başlangıç miktarı" value="0">
+      </div>
+      <button onclick="barkodOner()" class="oner-btn" id="onerBtn" style="display:none;">🔍 Barkoddan ürün adı öner</button>
+      <div id="onerSonuc"></div>
+      <button onclick="urunEkle()">Ürün Ekle</button>
+      <div id="ekleSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>Excel'den Toplu Ürün Aktar</h2>
+      <p class="bilgi-metni">
+        Dosyanda <b>barkod</b> ve <b>ad</b> (ürün adı) sütunları olmalı.
+        <b>birim</b> ve <b>miktar</b> sütunları opsiyonel. Barkod zaten
+        kayıtlıysa bilgileri günceller, yoksa yeni ürün olarak ekler.
+      </p>
+      <input type="file" id="excelDosya" accept=".xlsx,.xls,.csv">
+      <button onclick="excelYukle()">📤 Dosyayı Yükle</button>
+      <div id="excelSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>Tüm Ürünler</h2>
+      <button onclick="urunleriListele()">🔄 Listeyi Yenile</button>
+      <table id="urunTablosu">
+        <thead>
+          <tr><th>Barkod</th><th>Ürün</th><th>Miktar</th><th>Birim</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart">
+      <h2>📥 Mal Kabul</h2>
+      <div class="form-grid">
+        <input type="text" id="mkTedarikci" placeholder="Tedarikçi">
+        <input type="text" id="mkIrsaliyeNo" placeholder="İrsaliye no">
+      </div>
+      <input type="text" id="mkNot" placeholder="Not (opsiyonel)">
+      <div id="mkKalemler"></div>
+      <button onclick="mkSatirEkle()" class="satir-ekle-btn">+ Ürün Satırı Ekle</button>
+      <button onclick="mkKaydet()">Mal Kabulü Kaydet</button>
+      <div id="mkSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>📤 Sevkiyat</h2>
+      <div class="form-grid">
+        <input type="text" id="svMusteri" placeholder="Müşteri / birim">
+        <input type="text" id="svSevkNo" placeholder="Sevk no">
+      </div>
+      <input type="text" id="svKontrolEden" placeholder="Kontrol eden (opsiyonel)">
+      <input type="text" id="svNot" placeholder="Not (opsiyonel)">
+      <div id="svKalemler"></div>
+      <button onclick="svSatirEkle()" class="satir-ekle-btn">+ Ürün Satırı Ekle</button>
+      <button onclick="svKaydet()">Sevkiyatı Kaydet</button>
+      <div id="svSonuc"></div>
+    </section>
+
+    <section class="kart">
+      <h2>Mal Kabul Geçmişi</h2>
+      <button onclick="mkListele()">🔄 Listeyi Yenile</button>
+      <table id="mkTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Tedarikçi</th><th>İrsaliye</th><th>Kabul Eden</th><th>Kalem</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart">
+      <h2>Sevkiyat Geçmişi</h2>
+      <button onclick="svListele()">🔄 Listeyi Yenile</button>
+      <table id="svTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Müşteri</th><th>Sevk No</th><th>Hazırlayan</th><th>Kalem</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart">
+      <h2>Son Hareketler</h2>
+      <button onclick="hareketleriListele()">🔄 Listeyi Yenile</button>
+      <table id="hareketTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Tip</th><th>Önceki</th><th>Sonraki</th><th>Neden</th><th>Kim</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="kart" id="denetimKarti" style="display:none;">
+      <h2>Denetim Kayıtları (Audit Log)</h2>
+      <button onclick="denetimKayitlariniListele()">🔄 Listeyi Yenile</button>
+      <table id="denetimTablosu">
+        <thead>
+          <tr><th>Tarih</th><th>Kullanıcı</th><th>İşlem</th><th>Hedef</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  </div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
